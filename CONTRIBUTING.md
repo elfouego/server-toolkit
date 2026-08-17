@@ -1,6 +1,6 @@
 # Contribuer à server-toolkit
 
-## Convention d ecommit
+## Convention de commit
 'type: résumé court' - types: feat, fix, docs, chore, refactor
 
 ## Avant toute PR
