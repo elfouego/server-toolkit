@@ -1,4 +1,4 @@
-# server-toolkit
+# server-toolkit 🛠️
 
 Boîte à outils Bash pour l'administration et le diganostic de serveurs Linux.
 
