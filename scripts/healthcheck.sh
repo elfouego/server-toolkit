@@ -9,5 +9,3 @@ else
   echo "ALERTE: $URL répond avec le code $CODE"
   exit 1
 fi
-correstif urgent
-commentaire
