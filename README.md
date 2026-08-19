@@ -1,23 +1,30 @@
 # 🛠️ server-toolkit
 
-Boîte à outils Bash pour l'administration et le diagnostic de serveurs Linux — audit de comptes utilisateurs, analyse de logs d'accès et healthcheck HTTP.
+Boîte à outils Bash pour l'administration et le diagnostic de serveurs Linux. Le toolkit couvre désormais un parcours complet : audit des comptes, analyse de logs, contrôle d'état HTTP et orchestration centralisée des actions via un point d'entrée unique.
 
 ## Pourquoi ce projet
 
-Trois scripts simples, mais réels : chacun résout un besoin concret rencontré en administration système et en DevOps — vérifier qu'aucun compte inattendu ne traîne sur un serveur, repérer une IP qui abuse d'un service web, ou confirmer qu'un endpoint répond avant de continuer un déploiement.
+Le besoin initial était simple : automatiser des vérifications systémiques rapide à exécuter sur un serveur en production ou dans un environnement de déploiement. Aujourd'hui, le projet regroupe plusieurs diagnostics utiles pour :
+
+- détecter des comptes utilisateurs inattendus,
+- repérer des adresses IP qui génèrent beaucoup d'erreurs,
+- vérifier la disponibilité d'un service avant de poursuivre un déploiement,
+- lancer ces contrôles via un orchestrateur cohérent.
 
 ## Scripts disponibles
 
 | Script | Rôle |
 |---|---|
-| `scripts/audit-users.sh` | Liste les comptes utilisateurs actifs (UID ≥ 1000) pour détecter tout compte inattendu |
+| `scripts/toolkit.sh` | Point d'entrée unique pour orchestrer les diagnostics : `audit`, `logs` et `health` |
+| `scripts/audit.users.sh` | Liste les comptes utilisateurs actifs (UID ≥ 1000) pour détecter tout compte inattendu |
 | `scripts/analyze-logs.sh` | Extrait et classe les IPs générant le plus d'erreurs 4xx dans un fichier de log d'accès |
 | `scripts/healthcheck.sh` | Vérifie qu'une URL répond avec le code HTTP attendu, avec code de sortie exploitable en script |
 
 ## Prérequis
 
 - Bash 4+
-- `awk`, `curl` (préinstallés sur la quasi-totalité des distributions Linux)
+- `awk`, `curl`
+- Droits d'exécution sur les scripts
 
 ## Installation
 
@@ -27,32 +34,75 @@ cd server-toolkit
 chmod +x scripts/*.sh
 ```
 
-## Usage
+## Utilisation principale
+
+Le point d'entrée recommandé est `scripts/toolkit.sh`. Il fournit une interface unique et journalise les exécutions dans `/tmp/toolkit-<date>.log`.
 
 ### Audit des comptes utilisateurs
 
 ```bash
-./scripts/audit-users.sh
+./scripts/toolkit.sh audit
 ```
-Affiche tous les comptes avec UID ≥ 1000 (comptes humains standards) — utile pour vérifier qu'aucun compte n'a été créé sans autorisation.
+
+ou, si vous voulez exécuter directement le script interne :
+
+```bash
+./scripts/audit.users.sh
+```
+
+Cette commande affiche les comptes avec UID ≥ 1000 pour repérer des comptes humans standards ou des comptes suspects.
 
 ### Analyse des logs d'accès
 
 ```bash
+./scripts/toolkit.sh logs /var/log/nginx/access.log
+```
+
+ou directement :
+
+```bash
 ./scripts/analyze-logs.sh /var/log/nginx/access.log
 ```
-Retourne le top 10 des IPs générant le plus d'erreurs 4xx — un bon premier réflexe en cas d'activité suspecte.
+
+Le script retourne le top des IPs générant le plus d'erreurs 4xx, utile pour identifier un comportement anormal ou une tentative d'attaque.
 
 ### Healthcheck HTTP
 
 ```bash
-./scripts/healthcheck.sh https://example.com
+./scripts/toolkit.sh health https://example.com
 ```
-Retourne un code de sortie `0` si le service répond en `200`, `1` sinon — directement intégrable dans un pipeline CI/CD ou un cron de surveillance.
+
+ou directement :
 
 ```bash
-./scripts/healthcheck.sh https://example.com && echo "Déploiement OK" || echo "Rollback nécessaire"
+./scripts/healthcheck.sh https://example.com
 ```
+
+Le script retourne un code de sortie `0` si le service répond en `200`, `1` sinon. Cette propriété permet de l'intégrer facilement dans un pipeline CI/CD ou un cron de surveillance.
+
+```bash
+./scripts/toolkit.sh health https://example.com && echo "Déploiement OK" || echo "Rollback nécessaire"
+```
+
+### Mode verbeux
+
+```bash
+./scripts/toolkit.sh -v health https://example.com
+```
+
+Le mode `-v` active une sortie détaillée des messages et permet de suivre les étapes du traitement.
+
+## Commandes supportées par l'orchestrateur
+
+```bash
+./scripts/toolkit.sh [-v] <command> [<args>]
+```
+
+Commandes disponibles :
+
+- `audit`
+- `logs <fichier>`
+- `health <url>`
 
 ## Contribuer
 
