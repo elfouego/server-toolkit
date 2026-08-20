@@ -8,61 +8,19 @@ set -euo pipefail
 
 # shellcheck disable=SC2155
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck disable=SC2155
-readonly LOG_FILE="/tmp/toolkit-$(date +%Y-%m-%d).log"
 VERBOSE=0
-echo "dossier du script: $SCRIPT_DIR"
-# --- Journalisation structurée ---
-log() {
-    local level="$1" # INFO, WARN, ERROR
-    shift
-    local message="$*"
-    local timestamp
-    timestamp="$(date +'%Y-%m-%d %H:%M:%S')"
-    echo "[$timestamp] [$level] $message" | tee -a "$LOG_FILE"
-}
-
-log_info() {
-    log "INFO" "$@";
-}
-log_warn() {
-    log "WARN" "$@";
-}
-log_error() {
-    log "ERROR" "$@" >&2;
-}
-# -- Gestion des errreurs (trap ERR) ---
-on_error() {
-    local line_num="$1"
-    local command="$2"
-    local exit_code="$3"
-    log_error "Échec à la ligne $line_num : la commande '$command' a retourné le code $exit_code"
-}
-trap 'on_error $LINENO "$BASH_COMMAND" $?' ERR
-
-# --- Netoyyage systématique, quelle que soit l'issue rencontrée ---
-cleanup() {
-    local exit_code=$?
-    if [[ $exit_code -ne 0 ]]; then
-        log_error "Le script s'est terminé avec le code $exit_code"
-    else
-        log_info "Le script s'est terminé avec succès"
-    fi
-    log_info "Fin d'éxéution du script, log complet disponible dans $LOG_FILE"
-}
-trap cleanup EXIT
-
-# --- Arrêt propre après interruption ---
-trap 'log_warn "Interruption par utilisateur"; exit 130' INT TERM
-
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/loggin.sh"
 usage() {
     cat << EOF
-Usage: $(basename $0) [-v] <command> [<args>]
+Usage: $(basename "$0") [-v] <command> [<args>]
 Commandes: 
     - audit  : audit des comptes et des permissions
     - logs <fichier>  : analyse des fichiers logs du système
     - health <url> : Healthcheck HTTP d'une URL donnée
-
+    - secret-check <répertoire> : Vérification de la présence de secrets dans un dépôt Git
+    - disk-cleanup [--dry-run] [--threshold <pourcentage>] : Surveiller l'espace disque et proposer un nettoyage ciblé si le seuil est dépassé
+    - backup-rotate -s <répertoire_source> [-d <répertoire_destination>] [-k <jours_à_conserver>] : Créer une archive compressée d'un répertoire, la dater, et supprimer les archives plus anciennes qu'un nombre de jours donné
     Options:
     -v : mode verbeux (affiche les logs en temps réel)
     -h: : affiche ce message d'aide
@@ -138,6 +96,24 @@ case "$COMMAND" in
             log_error "Healthcheck échoué pour l'URL: $URL"
             exit 1
         fi
+        ;;
+    secret-check)
+        if [[ $# -lt 1 ]]; then
+            log_error "La commande 'secret-check' requiert un répertoire comme argument <répertoire>"
+            usage
+            exit 1
+        fi
+        DIRECTORY="$1"
+        log_info "Vérification de la présence de secrets dans le répertoire: $DIRECTORY"
+        bash "$SCRIPT_DIR/secret-check.sh" "$DIRECTORY"
+        ;;
+    disk-cleanup)
+        log_info "Surveillance de l'espace disque et nettoyage ciblé si nécessaire"
+        bash "$SCRIPT_DIR/disk-cleanup.sh" "$@"
+        ;;
+    backup-rotate)
+        log_info "Création d'une archive compressée et rotation des sauvegardes"
+        bash "$SCRIPT_DIR/backup-rotate.sh" "$@"
         ;;
     *)
         log_error "Commande inconnue: $COMMAND"
