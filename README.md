@@ -13,6 +13,7 @@ Le besoin initial était simple : automatiser des vérifications systémiques ra
 - surveiller l'espace disque et simuler ou effectuer un nettoyage ciblé,
 - créer des sauvegardes compressées et supprimer automatiquement les archives anciennes,
 - lancer ces contrôles via un orchestrateur cohérent.
+-
 
 
 ## Scripts disponibles
