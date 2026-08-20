@@ -1,6 +1,6 @@
 # 🛠️ server-toolkit
 
-Boîte à outils Bash pour l'administration et le diagnostic de serveurs Linux. Le toolkit couvre désormais un parcours complet : audit des comptes, analyse de logs, contrôle d'état HTTP et orchestration centralisée des actions via un point d'entrée unique.
+Boîte à outils Bash pour l'administration et le diagnostic de serveurs Linux. Le toolkit couvre l'audit des comptes, l'analyse de logs, le contrôle HTTP, la détection de secrets, le nettoyage ciblé du disque et la rotation des sauvegardes via un point d'entrée unique.
 
 ## Pourquoi ce projet
 
@@ -9,7 +9,11 @@ Le besoin initial était simple : automatiser des vérifications systémiques ra
 - détecter des comptes utilisateurs inattendus,
 - repérer des adresses IP qui génèrent beaucoup d'erreurs,
 - vérifier la disponibilité d'un service avant de poursuivre un déploiement,
+- repérer des secrets potentiellement exposés dans un répertoire ou un dépôt Git,
+- surveiller l'espace disque et simuler ou effectuer un nettoyage ciblé,
+- créer des sauvegardes compressées et supprimer automatiquement les archives anciennes,
 - lancer ces contrôles via un orchestrateur cohérent.
+
 
 ## Scripts disponibles
 
@@ -19,6 +23,10 @@ Le besoin initial était simple : automatiser des vérifications systémiques ra
 | `scripts/audit.users.sh` | Liste les comptes utilisateurs actifs (UID ≥ 1000) pour détecter tout compte inattendu |
 | `scripts/analyze-logs.sh` | Extrait et classe les IPs générant le plus d'erreurs 4xx dans un fichier de log d'accès |
 | `scripts/healthcheck.sh` | Vérifie qu'une URL répond avec le code HTTP attendu, avec code de sortie exploitable en script |
+| `scripts/secret-check.sh` | Recherche des clés, tokens, mots de passe et autres secrets potentiels dans un répertoire ou un dépôt Git HTTPS |
+| `scripts/disk-cleanup.sh` | Surveille l'utilisation du disque et nettoie des emplacements ciblés lorsque le seuil est dépassé |
+| `scripts/backup-rotate.sh` | Crée une archive `.tar.gz` datée et supprime les sauvegardes plus anciennes que la durée de conservation |
+| `scripts/loggin.sh` | Centralise la journalisation, les erreurs et le nettoyage de fin d'exécution |
 
 ## Prérequis
 
@@ -50,7 +58,7 @@ ou, si vous voulez exécuter directement le script interne :
 ./scripts/audit.users.sh
 ```
 
-Cette commande affiche les comptes avec UID ≥ 1000 pour repérer des comptes humans standards ou des comptes suspects.
+Cette commande affiche les comptes avec UID ≥ 1000 pour repérer des comptes humains standards ou des comptes suspects.
 
 ### Analyse des logs d'accès
 
@@ -92,6 +100,44 @@ Le script retourne un code de sortie `0` si le service répond en `200`, `1` sin
 
 Le mode `-v` active une sortie détaillée des messages et permet de suivre les étapes du traitement.
 
+### Vérification des secrets
+
+```bash
+./scripts/toolkit.sh secret-check .
+```
+
+La commande recherche notamment les clés AWS, clés API, tokens GitHub ou Slack, clés privées, mots de passe et tokens Bearer. Elle retourne une erreur si un secret potentiel est détecté.
+
+Un dépôt Git accessible en HTTPS peut également être analysé :
+
+```bash
+./scripts/toolkit.sh secret-check https://github.com/example/project.git
+```
+
+### Nettoyage ciblé du disque
+
+Par défaut, le seuil d'intervention est fixé à 80 % :
+
+```bash
+./scripts/toolkit.sh disk-cleanup
+```
+
+Pour simuler le nettoyage sans supprimer de fichiers :
+
+```bash
+./scripts/toolkit.sh disk-cleanup --dry-run --threshold 75
+```
+
+Les zones ciblées comprennent notamment les logs, les fichiers temporaires, les caches utilisateur et le cache APT. Utilisez `--dry-run` avant toute exécution réelle.
+
+### Rotation des sauvegardes
+
+```bash
+./scripts/toolkit.sh backup-rotate -s /etc -d /tmp/backups -k 7
+```
+
+La commande crée une archive compressée datée dans le répertoire de destination, créé automatiquement s'il n'existe pas, puis supprime les archives correspondantes datant de plus de 7 jours. Les options disponibles sont `-s` pour la source, `-d` pour la destination et `-k` pour la durée de conservation en jours.
+
 ## Commandes supportées par l'orchestrateur
 
 ```bash
@@ -103,6 +149,9 @@ Commandes disponibles :
 - `audit`
 - `logs <fichier>`
 - `health <url>`
+- `secret-check <répertoire-ou-url-git>`
+- `disk-cleanup [--dry-run] [--threshold <pourcentage>]`
+- `backup-rotate -s <répertoire_source> [-d <répertoire_destination>] [-k <jours>]`
 
 ## Contribuer
 
